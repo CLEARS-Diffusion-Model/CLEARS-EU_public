@@ -1,0 +1,13 @@
+﻿Net wages,
+EUR,
+-,
+battery_data,Value
+battery_cost,459
+battery_cost_power,388
+battery_cost_std,0.2
+depth_of_discharge,0.9
+discount_rate,0.05
+efficiency,0.9
+elec_price_growth,0.02
+labour_cost,240
+lifetime,15

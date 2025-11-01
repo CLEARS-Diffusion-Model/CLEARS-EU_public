@@ -1,0 +1,11 @@
+﻿Solar PV specifications,
+-,
+-,
+pv_data,Value
+discount_rate,0.05
+elec_price_growth,0.02
+labour_cost,120
+lifetime,30
+pv_cost,2393
+pv_cost_std,0.2
+pv_op_cost,0.026

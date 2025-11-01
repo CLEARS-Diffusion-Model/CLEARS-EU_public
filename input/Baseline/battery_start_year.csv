@@ -1,0 +1,31 @@
+﻿Start year of Bass model,
+-,
+Defined based on the first year when total capacity is >= 1MW (Eurostat),
+country,Value
+Austria,1997
+Belgium,1995
+Bulgaria,2014
+Croatia,2017
+Cyprus,2010
+Czechia,2005
+Denmark,2001
+Estonia,2015
+Finland,1995
+France,1997
+Germany,1995
+Greece,2006
+Hungary,2013
+Ireland,2014
+Italy,1995
+Latvia,2015
+Lithuania,2015
+Luxembourg,2006
+Malta,2015
+Netherlands,1995
+Poland,2015
+Portugal,2015
+Romania,2015
+Slovakia,2015
+Slovenia,2005
+Spain,1995
+Sweden,1997
