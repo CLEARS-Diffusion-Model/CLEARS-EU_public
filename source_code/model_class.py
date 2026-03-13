@@ -102,7 +102,7 @@ class ModelRun:
         self.model_end = int(config.get('settings', 'model_end'))
         self.run_bass_model = str(config.get('settings', 'run_bass_model'))
         self.scenario = config.get('settings', 'scenario')
-
+        self.controlled_share = float(config.get('settings', 'controlled_share'))
 
 
         # self.model_start = datetime.strptime(config.get('settings', 'model_start'), "%Y-%m-%d")
@@ -123,7 +123,7 @@ class ModelRun:
 
 #        # Load historical data, exogenous assumptions
         self.data = in_f.load_data(self.titles, self.dims, self.timeline)
-        self.data = base_battery_use(self.data, self.titles, 0)
+        self.data = base_battery_use(self.data, self.titles, 0, self.controlled_share)
         
         # Initiate Bass model
         if self.run_bass_model == 'yes':
@@ -178,18 +178,17 @@ class ModelRun:
                     self.data = npv_calc.npv_calculation_pv(self.data, self.titles, period)
                     self.data = npv_calc.potential_population_pv(self.data, self.titles, period)
                     # NPV of residential batteries
-                    self.data = npv_calc.npv_calculation_battery(self.data, self.titles, period)
+                    self.data = peak.peak_hours(self.data, self.titles, period, f)
+                    # Calculate battery use with peak hours from last year
+                    if ('peak' in self.scenario) & (year >= 2024):
+                        self.data = peak_battery_use(self.data, self.titles, period)
+                    self.data = npv_calc.npv_calculation_battery(self.data, self.controlled_share, self.scenario, self.titles, period)
                     self.data = npv_calc.potential_population_battery(self.data, self.titles, period)
                     self.data = bm.simulate_pv_diffusion(self.data, self.titles, year, period, f)
                     self.data = si.total_pv_generation(self.data, self.titles, self.timeline, period, year, f)
                     self.data = bm.simulate_diffusion_battery(self.data, self.titles, year, period, f)
-                    # Calculate battery use with peak hours from last year
-                    if (year >= 2025):
-                        if 'peak' in self.scenario:
-                            self.data = peak.peak_hours(self.data, self.titles, period, f)
-                            self.data = peak_battery_use(self.data, self.titles, period)
-                        if 'smoothed' in self.scenario:
-                            self.data = smooth_battery_use(self.data, self.titles, period, f)
+                    if ('flex' in self.scenario) & (year >= 2024):
+                        self.data = smooth_battery_use(self.data, self.titles, period, f, self.controlled_share)
                     if 'baseline' in self.scenario:
                         self.data['peak_participation'][:, 0, 0, 0, 0, 0, period] = 0
                     self.data = si.total_battery_use(self.data, self.titles, self.timeline, period, year, f, self.scenario)

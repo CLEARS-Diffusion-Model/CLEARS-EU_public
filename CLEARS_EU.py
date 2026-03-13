@@ -56,18 +56,6 @@ model.run()
 
 # Export results
 results = copy.deepcopy(model.data)
-
-with open("output/{}.pickle".format(scenario), 'wb') as f:
-    pickle.dump(results,f)
-
-
-
-scenario = 'smoothed'
-filename = "output/{}.pickle".format(scenario)
-
-# open and load
-with open(filename, "rb") as f:
-    results = pickle.load(f)
     
 
 print_vars = ['battery_benefit',

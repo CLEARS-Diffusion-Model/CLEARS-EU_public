@@ -6,4 +6,4 @@ In this public version of the model, certain proprietary data, specifically hist
 The model can be executed with three distinct battery operation strategies, configurable in the settings.ini file:
 1. baseline – batteries are used solely for self-consumption;
 2. peak – batteries can discharge electricity to the grid during predefined peak hours;
-3. smoothed – a national operator manages the batteries, charging them when the national load is below the expected daily average and discharging them when it exceeds this level.
+3. flex – a national operator manages the batteries, charging them when the national load is below the expected daily average and discharging them when it exceeds this level.

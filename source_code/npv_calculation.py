@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Nov 19 16:17:54 2023
+Created on Sat Feb 28 10:11:41 2026
 
-@author: adh
+@author: hartv
 """
+
 
 import pandas as pd
 import numpy as np
@@ -11,7 +12,7 @@ import os
 from datetime import datetime
 from scipy.stats import norm
 
-def npv_calculation_battery(data, titles, period):
+def npv_calculation_battery(data, controlled_share, scenario, titles, period):
 
     # Set main parameters
     # Assume no subsidy before 2024
@@ -41,7 +42,7 @@ def npv_calculation_battery(data, titles, period):
     lt_idx = titles['battery_data'].index('lifetime')
     lifetime = data['battery_specs'][lt_idx, 0, 0, 0, 0, 0, 0]
 
-    battery_price_chng = data['battery_price'][1, 0, 0, 0, 0, 0, period]
+    battery_price_chng = data['battery_price'][2, 0, 0, 0, 0, 0, period]
     battery_cost = battery_cost * battery_price_chng
     battery_power_cost = battery_power_cost * battery_price_chng
 
@@ -51,18 +52,32 @@ def npv_calculation_battery(data, titles, period):
         adj_profile = data['profiles_adj'][i, :, :, :, 0, :, :]
         adj_pv_gen = data['pv_gen_adj'][i, :, :, :, 0, :, :]
         pv_size = data['pv_size_adj'][i, :, :, :, 0, 0, 0]
-        # discharge = data['discharge_baseline'][i, :, :, :, :, :, 0].sum(axis = 3).sum(axis = 3)
-        # charge = data['charge_baseline'][i, :, :, :, :, :, 0].sum(axis = 3).sum(axis = 3)
+        if 'flex' in scenario:
+            discharge = data['discharge_baseline'][i, :, :, :, :, :, 0]
+            charge = data['charge_baseline'][i, :, :, :, :, :, 0]
+        else:
+            discharge = data['discharge'][i, :, :, :, :, :, 0]
+            charge = data['charge'][i, :, :, :, :, :, 0]
+        peak_h = data['peak_h'][i, :, 0, 0, 0, 0, period].astype(int)
+        valley_h = data['valley_h'][i, :, 0, 0, 0, 0, period].astype(int)
 
         subsidy = subsidy_all[i]
         # Calculate PV overproduction
         overprod = adj_pv_gen - adj_profile
         overprod[overprod < 0] = 0
         data['pv_overprod'] = overprod
+        
+        # Calculate residual load
+        residual_demand = adj_profile - adj_pv_gen
+        residual_demand[residual_demand < 0] = 0
+        # Calculate feed-in from batteries
+        grid_feedin = discharge - residual_demand
+        grid_feedin[grid_feedin < 0] = 0
 
         # Calculate actual price
         consumption = data['consumption_adj'][i, :, :, :, 0, 0, 0]
         price = data['electricity_price'][i, :, 0, 0, 0, 0, 0]
+        dyn_price = data['dyn_elec_price'][i, :, 0, 0, 0, 0, :]
         feed_in_tariff = data['feed_in_tariff'][i, 0, 0, 0, 0, 0, 0]
         vat = data['vat'][i, 0, 0, 0, 0, 0, 0] / 100
 
@@ -75,14 +90,63 @@ def npv_calculation_battery(data, titles, period):
         # npv_benefit = (discharge * price[np.newaxis, :, np.newaxis] 
         #                - charge * feed_in_tariff) * annuity_factor
 
-        # Battery output adjusted for efficiency and self-consumption
-        daily_storage = overprod.sum(axis = 4)
-        # Limit daily storage by battery storage capacity
-        daily_storage[:, :, :, :] = np.minimum(daily_storage[:, :, :, :], battery_size[i, :, :, :, np.newaxis])
-
-        battery_output = daily_storage.sum(axis = 3) * battery_eff * dod # * self_consumption
         # Total benefits from battery
-        npv_benefit = battery_output * price_diff[np.newaxis, :, np.newaxis] * annuity_factor
+        # Create dynamic prices for peak hours
+        hourly_price = np.ones(24)
+        hourly_price = hourly_price[np.newaxis, np.newaxis, np.newaxis, :] * price[np.newaxis, :, np.newaxis, np.newaxis]
+        hourly_fit = np.ones(24)
+        hourly_fit = hourly_fit[np.newaxis, np.newaxis, np.newaxis, :] * feed_in_tariff
+        if 'flex' in scenario:
+            npv_benefit = ((((discharge.sum(axis = 3) - grid_feedin.sum(axis = 3)) * dyn_price[np.newaxis, :, np.newaxis, :]) +
+                           (grid_feedin.sum(axis = 3) * hourly_fit) - 
+                           (charge.sum(axis = 3) * hourly_fit)).sum(axis = 3) + 
+                           battery_size[i, :, :, :] * controlled_share * 365 * (price[np.newaxis, :, np.newaxis] - feed_in_tariff)) * annuity_factor
+
+        elif 'peak' in scenario:
+            hourly_fit = np.ones_like(hourly_price)
+            hourly_fit = hourly_fit * feed_in_tariff
+            # Assume that FiT equals to electricity prices at peak hours
+            hourly_fit[:, :, :, peak_h]  = dyn_price[np.newaxis, :, np.newaxis, peak_h]
+            # hourly_fit = np.minimum(hourly_fit, price.reshape(1, 3, 1, 1))            
+            npv_benefit = ((((discharge.sum(axis = 3) - grid_feedin.sum(axis = 3)) * hourly_price) +
+                           (grid_feedin.sum(axis = 3) * hourly_fit) - 
+                           (charge.sum(axis = 3) * feed_in_tariff)).sum(axis = 3)) * annuity_factor
+        elif 'dyn' in scenario:          
+            npv_benefit = ((((discharge.sum(axis = 3) - grid_feedin.sum(axis = 3)) * dyn_price[np.newaxis, :, np.newaxis, :]) +
+                           (grid_feedin.sum(axis = 3) * hourly_fit) - 
+                           (charge.sum(axis = 3) * feed_in_tariff)).sum(axis = 3)) * annuity_factor
+        
+        else:
+            # hourly_fit = np.minimum(hourly_fit, price.reshape(1, 3, 1, 1))            
+            npv_benefit = ((((discharge.sum(axis = 3) - grid_feedin.sum(axis = 3)) * hourly_price) +
+                           (grid_feedin.sum(axis = 3) * hourly_fit) - 
+                           (charge.sum(axis = 3) * feed_in_tariff)).sum(axis = 3)) * annuity_factor
+        
+        
+        
+            
+            discharge_baseline = data['discharge_baseline'][i, :, :, :, :, :, 0]
+            charge_baseline = data['charge_baseline'][i, :, :, :, :, :, 0]
+            # Calculate feed-in from batteries
+            grid_feedin_baseline = discharge_baseline - residual_demand
+            grid_feedin_baseline[grid_feedin_baseline < 0] = 0
+            npv_benefit_baseline = ((((discharge_baseline.sum(axis = 3) - grid_feedin_baseline.sum(axis = 3)) * hourly_price) +
+                           (grid_feedin_baseline.sum(axis = 3) * hourly_fit) - 
+                           (charge_baseline.sum(axis = 3) * feed_in_tariff)).sum(axis = 3)) * annuity_factor
+        
+            
+            # discharge_baseline = data['discharge_baseline'][i, :, :, :, :, :, 0]
+            # charge_baseline = data['charge_baseline'][i, :, :, :, :, :, 0]
+            # # Calculate feed-in from batteries
+            # grid_feedin_baseline = discharge_baseline - residual_demand
+            # grid_feedin_baseline[grid_feedin_baseline < 0] = 0
+            # npv_benefit_baseline = ((((discharge_baseline.sum(axis = 3) - grid_feedin_baseline.sum(axis = 3)) * hourly_price) +
+            #                (grid_feedin_baseline.sum(axis = 3) * hourly_fit) - 
+            #                (charge_baseline.sum(axis = 3) * feed_in_tariff)).sum(axis = 3)) * annuity_factor
+        
+            
+            
+        
         data['battery_benefit'][i, :, :, :, 0, 0, period] = npv_benefit
 
         # Adjustment of labour cost with country labour costs

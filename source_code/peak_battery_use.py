@@ -228,7 +228,7 @@ def peak_battery_use(data, titles, period):
                     # If stored energy is more than 0 sell excess energy to the system
                     if np.any(remaining_potential > 0):
                         # Sell excess energy but limited to battery power capacity
-                        peak_sell = np.minimum(reg_pv_size / 2, (remaining_potential))
+                        peak_sell = np.minimum(reg_pv_size / 4, (remaining_potential))
                         peak_sell[peak_sell < 0] = 0
                         # Add discharge to peak hour
                         discharge[:, :, :, d, h] += peak_sell

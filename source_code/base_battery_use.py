@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 
-def base_battery_use(data, titles, period):
+def base_battery_use(data, titles, period, controlled_share):
     # Set main parameters
     yearly_cons = data['consumption'][:, :, :, :, :, :, :]
     cons_size = np.array([1.5, 1, 0.75])[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
@@ -58,7 +58,7 @@ def base_battery_use(data, titles, period):
     # data['pv_size_adj'][:, :, :, :, 0, 0, 0] = pv_size
     data['pv_gen_adj'] = data['pv_gen'][:, :, :, :, :, :, :] * pv_size[:, :, :, :, np.newaxis, np.newaxis, np.newaxis]
     # Set battery size
-    battery_size = data['battery_size_adj'][:, :, :, :, 0, 0, 0]
+    battery_size = data['battery_size_adj'][:, :, :, :, 0, 0, 0] * (1 - controlled_share)
 
 
     for i, country in enumerate(titles['country']):

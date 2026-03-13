@@ -13,20 +13,16 @@ from datetime import datetime
 
 def total_battery_use(data, titles, timeline, period, year, f, scenario):
 
-    if ('baseline' in scenario) | ('peak' in scenario):
-        data['charge_total'][:, :, :, :, :, :, period] = (data['charge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period] * data['peak_participation'][:, :, :, :, :, :, period] / 100 +
-                                                          data['charge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period] * (1- data['peak_participation'][:, :, :, :, :, :, period] / 100))
-        data['discharge_total'][:, :, :, :, :, :, period] = (data['discharge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period] * data['peak_participation'][:, :, :, :, :, :, period] / 100 +
-                                                          data['discharge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period] * (1- data['peak_participation'][:, :, :, :, :, :, period] / 100))
-    
-    if 'smoothed' in scenario:
+    if 'flex' in scenario:
         data['charge_total'][:, 0, 0, 0, :, :, period] = (data['charge'][:, :, :, :, :, :, 0].sum(axis = 1).sum(axis = 1).sum(axis = 1) +
-                                                          (data['charge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]).sum(axis = 1).sum(axis = 1).sum(axis = 1) * 
-                                                          (1- data['peak_participation'][:, 0, 0, 0, :, :, period] / 100))
+                                                          (data['charge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]).sum(axis = 1).sum(axis = 1).sum(axis = 1))
         data['discharge_total'][:, 0, 0, 0, :, :, period] = (data['discharge'][:, :, :, :, :, :, 0].sum(axis = 1).sum(axis = 1).sum(axis = 1) +
-                                                          (data['discharge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]).sum(axis = 1).sum(axis = 1).sum(axis = 1) * 
-                                                          (1- data['peak_participation'][:, 0, 0, 0, :, :, period] / 100))    
-        
+                                                          (data['discharge_baseline'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]).sum(axis = 1).sum(axis = 1).sum(axis = 1))    
+      
+    else:
+        data['charge_total'][:, :, :, :, :, :, period] = (data['charge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period])
+        data['discharge_total'][:, :, :, :, :, :, period] = (data['discharge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period])
+      
     data['charge_total_2050'][:, :, :, :, :, :, f] = data['charge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]
     data['discharge_total_2050'][:, :, :, :, :, :, f] = data['discharge'][:, :, :, :, :, :, 0] * data['battery_cum'][:, :, :, :, f, np.newaxis, :, period]
 
